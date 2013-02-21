@@ -62,6 +62,6 @@ biomvRGviz(exprgr, gmgr = NULL, prange = NULL, regionID = "regionID", seggr = NU
 	soj$D <- sapply(1:J, function(j) rev(cumsum(rev(soj$d[1:maxk,j]))))
 	sample<-colnames(coriell)[4]
 	runout<-biomvRhsmmRun(matrix(values(xgr)[,sample]), sample, xgr, soj, emis.type='norm')
-	biomvRGviz(exprgr=xgr, seggr=runout@res, tofile=FALSE) 
+	biomvRGviz(exprgr=xgr, seggr=runout$res, tofile=FALSE) 
 	
 }
