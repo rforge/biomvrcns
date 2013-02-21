@@ -91,5 +91,5 @@ biomvRseg(x, maxk=NULL, maxbp=NULL, maxseg=NULL, xPos=NULL, xRange=NULL, usePos=
 	xgr<-GRanges(seqnames=paste('chr', coriell[,2], sep=''), IRanges(start=coriell[,3], width=1, names=coriell[,1]))
 	values(xgr)<-DataFrame(coriell[,4:5], row.names=NULL)
 	xgr<-xgr[order(xgr)]
-	resseg<-biomvRseg(x=xgr, mabp=1E5, maxseg=3, family='norm', grp=c(1,2))
+	resseg<-biomvRseg(x=xgr, maxbp=1E5, maxseg=3, family='norm', grp=c(1,2))
 }
