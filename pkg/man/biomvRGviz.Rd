@@ -19,7 +19,7 @@ biomvRGviz(exprgr, gmgr = NULL, prange = NULL, regionID = "regionID", seggr = NU
 	an optional GRanges object for the annotation, which must have one column named 'TYPE' in its meta DataFrame
 }
   \item{prange}{
-	an optional vecter defining the scope of the plot, the first 3 elements must be formatted as c('seqname', 'start_position', 'end_position')
+	an optional vector defining the scope of the plot, the first 3 elements must be formatted as c('seqname', 'start_position', 'end_position')
 }
   \item{regionID}{
 	a character for the name of the plotted region or gene name or other identifier, will be used in the title of the plot and the output file name
@@ -40,7 +40,7 @@ biomvRGviz(exprgr, gmgr = NULL, prange = NULL, regionID = "regionID", seggr = NU
 	whether names in \code{gmgr} and 'STATE' value in \code{seggr} are shown on the plot.
 }
   \item{...}{
-	other arguments for \code{plot}
+	other arguments for \code{plot}, like \code{main} or \code{ylab}
 }
 }
 \details{
