@@ -5,7 +5,7 @@
 ##################################################
 # re-implement HSMM, one more slot to handle distance array
 ##################################################
-biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, usePos='start', emis.type='norm', xAnno=NULL, soj.type='gamma', q.alpha=0.05, r.var=0.75, cMethod='F-B', maxit=1, maxgap=Inf, tol=1e-06, grp=NULL, clusterm=NULL, na.rm=TRUE){
+biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, usePos='start', emis.type='norm', xAnno=NULL, soj.type='gamma', q.alpha=0.05, r.var=0.75, cMethod='F-B', maxit=1, maxgap=Inf, tol=1e-06, grp=NULL, cluster.m=NULL, avg.m='median', trim=0, na.rm=TRUE){
 	## input checking
 	# lock.transition / lock.d, lock transition and sojourn #fixme
 	# est.method=c('viterbi', 'smooth')
@@ -185,7 +185,7 @@ biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, useP
 
 
 
-hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05, r.var=0.75, cMethod='F-B', maxit=1, maxgap=Inf, tol= 1e-6, na.rm=TRUE){
+hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05, r.var=0.75, cMethod='F-B', maxit=1, maxgap=Inf, tol= 1e-6, avg.m='median', trim=0, na.rm=TRUE){
 	# now x should be a one column matrix
 	if(is.null(dim(x))) x<-matrix(x)
 	colnames(x)<-xid
@@ -204,11 +204,12 @@ hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05
 	emis$mu <- estEmisMu(x, J, q.alpha=q.alpha)
 	if(emis$type == 'norm' || emis$type== 'mvnorm' || emis$type == 'mvt') {
 		emis$var <- estEmisVar(x, J, r.var=r.var)
-	} else if (emis$type == 'pois'){
-		emis$lambda  <- estEmisMu(x, J, q.alpha=q.alpha)
-	} else if (emis$type == 'nbinom'){
-		emis$mu <- estEmisMu(x, J, q.alpha=q.alpha)
-		emis$size <- rep(0.5, J) # arbitrary prior
+	}
+	if (emis$type == 'nbinom'){
+		emis$size <- rep(estimateSegCommonDisp(x), J) # common prior
+	}
+	if (emis$type == 't' || emis$type == 'mvt'){
+		emis$df <- rep(1, J) # common prior
 	}
 	# switch est.method 
 	#estimation of most likely state sequence
@@ -227,7 +228,6 @@ hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05
 		#update initial prob PI, transition >=0 check
 #		init<-B$pihat
 		init<- abs(B$pihat)/sum(abs(B$pihat))
-#		init[init<0]<-0
 		trans <- matrix(B$ahat,ncol=J)
 		trans[trans<0] <- 0
 		
@@ -236,7 +236,6 @@ hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05
 		  stop("Sojourn distribution does not work well, NaN in B$L ")
 		}
 		#update emision according to the new estimated distribution paramenters using B$L
-		if(any(B$L<0)) B$L[B$L<0]<-0
 		emis<-initEmis(emis=emis, x=x, B=B)
 		# update sojourn dD, using B$eta
 		soj<-initSojDd(soj=soj, B=B)
@@ -587,11 +586,11 @@ initEmis<-function(emis, x, B=NULL){
 		if(emis$type == 'mvnorm') {
 			isa <-  !apply(is.na(x),1,any) # Find rows with NA's (cov.wt does not like them)
 			tmp <- apply(BL, 2, function(cv) cov.wt(x[isa, ], cv[isa])[c('cov', 'center')]) # x is already a matrix 
-			emis$mu <- sapply(tmp, function(l) l['cneter'])
-			emis$cov <- sapply(tmp, function(l) l['cov'])
+			emis$mu <- lapply(tmp, function(l) unname(l[['center']]))
+			emis$var <- lapply(tmp, function(l) unname(l[['cov']]))
 		} else if (emis$type == 'pois'){
 			isa <- !is.na(x)
-			emis$lambda <- apply(BL, 2, function(cv) weighted.mean(matrix(x[isa]), cv[isa]))
+			emis$mu <- apply(BL, 2, function(cv) weighted.mean(matrix(x[isa]), cv[isa]))
 		} else if (emis$type == 'norm'){
 			isa <- !is.na(x)
 			tmp <- apply(BL, 2, function(cv) unlist(cov.wt(matrix(x[isa]), cv[isa])[c('cov', 'center')]))

@@ -410,9 +410,9 @@ poisFit <- function(x, wt=NULL, maxshift=0) {
 	if(is.null(wt)) wt <- rep(1/length(x),length(x))
 	if(length(x) != length(wt)) stop("length of x and wt differ!")
 	
-	shift<-which.max(sapply(0:maxshift, function(s) sum(dpois(x = x-s, lambda=(x-s) %*% wt,log=TRUE) %*% wt, na.rm=T)))-1
-	lambda <- (x-shift) %*% wt 
-    return(c(shift=shift, lambda=lambda))
+	shift<-which.max(sapply(0:maxshift, function(s) sum(dpois(x = x-s, lambda=sum((x-s) * wt, na.rm=T) ,log=TRUE) * wt, na.rm=T)))-1
+	lambda <- sum((x-shift) * wt, na.rm=T) 
+    return(c(lambda=lambda, shift=shift))
 }
 
 nbinomFit <- function(x, wt=NULL, maxshift=0) {  	

@@ -63,7 +63,7 @@ biomvRseg(x, maxk=NULL, maxbp=NULL, maxseg=NULL, xPos=NULL, xRange=NULL, usePos=
   \item{grp}{
 	vector of group assignment for each sample, with a length the same as columns in the data matrix, samples within each group would be processed simultaneously if a multivariate emission distribution is available
 }
-  \item{clusterm}{
+  \item{cluster.m}{
 	clustering method for prior grouping, possible values are 'ward','single','complete','average','mcquitty','median','centroid'
 }
   \item{avg.m}{

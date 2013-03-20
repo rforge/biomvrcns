@@ -4,8 +4,8 @@ biomvRseg<-function(x, maxk=NULL, maxbp=NULL, maxseg=NULL, xPos=NULL, xRange=NUL
 	# input to the main function is a matrix object, x, features on the same strand and same chr
 	# optional grouping factor, length of which should be the same as the column of x
 	# input checking and preparation
-	if (is.null(family) || (family != 'norm' && family != 'pois' && family != 'nbinom')) 
-    	stop("'family' must be specified, currently only 'norm' ,'pois' and 'nbinom' are supported !")
+	familes<-c('norm' , 'pois' , 'nbinom')
+	family<-match.arg(family, familes)
 	
 	if (!is.numeric(x) &&  !is.matrix(x) && class(x)!='GRanges') 
         stop("'x' must be a numeric vector or matrix or a GRanges object.")
