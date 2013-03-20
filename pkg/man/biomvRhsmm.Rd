@@ -33,7 +33,7 @@ biomvRhsmm(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, usePos='start'
 	character value to indicate whether the 'start', 'end' or 'mid' point position should be used to estimate the sojourn distribution
 }
   \item{emis.type}{
-	type of the emission distribution, only the following types are supported: 'norm', 'mvnorm', 'pois', 'nbinom'
+	type of the emission distribution, only the following types are supported: 'norm', 'mvnorm', 'pois', 'nbinom', 'mvt', 't'
 }
   \item{xAnno}{
 	a optional \code{TranscriptDb} / \code{GRanges} / \code{GRangesList} object used in \code{\link{sojournAnno}} to infer parameters for the sojourn distribution 
@@ -65,6 +65,12 @@ biomvRhsmm(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, usePos='start'
 }
   \item{clusterm}{
 	clustering method for prior grouping, possible values are 'ward','single','complete','average','mcquitty','median','centroid'
+}
+  \item{avg.m}{
+	method to calculate average value for each segment, 'median' or 'mean' possibly trimmed
+}
+  \item{trim}{
+	the fraction (0 to 0.5) of observations to be trimmed from each end of x before the mean is computed. Values of trim outside that range are taken as the nearest endpoint.
 }
   \item{na.rm}{
 	\code{TRUE} if \code{NA} value should be ignored 

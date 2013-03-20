@@ -71,7 +71,7 @@ Currently the package does not deal with data correction, so input should be nor
 
 
 Extracted from packge \Rpackage{DNACopy}, the \Robject{coriell} data contains two aCGH studies (GM05296 and GM13330) 
-of Corriel cell lines taken from \citep{snijders2001assembly}.
+of Corriel cell lines taken from \citet{snijders2001assembly}.
 In particular, with 2271 mapped features in total across 22 autosomes and chromosome X. 
 
 All three main functions accept common data matrix plus positional information as input or a \Rclass{GRanges} object 
@@ -137,7 +137,7 @@ column \Robject{SAMPLE} gives the column name of which sample this segment belon
 column \Robject{STATE}, the estimated state for each segments, the lower state number represents 
 state with lower mean value, thus in this example, a state of $1$ could represent region of deletion 
 and $3$ for region of duplication, whereas state $2$ could be considered copy neutral; 
-column \Robject{MEAN}, gives the segment mean.
+column \Robject{AVG}, gives the segment average value.
 
 
 A \Rfunction{plot} method has been implemented for \Rclass{biomvRCNS} object using package \Rpackage{Gviz}, 

@@ -36,8 +36,8 @@ biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, useP
 	if (is.null(cMethod) || !(cMethod %in% c('F-B', 'Viterbi'))) 
 		stop("'cMethod' must be specified, must be either 'F-B' or 'Viterbi'!")
 
-	if (is.null(emis.type) || !(emis.type %in% c('norm', 'mvnorm', 'pois', 'nbinom'))) 
-		stop("'emis.type' must be specified, must be one of 'norm', 'mvnorm', 'pois', 'nbinom'!")
+	if (is.null(emis.type) || !(emis.type %in% c('norm', 'mvnorm', 'pois', 'nbinom', 'mvt', 't'))) 
+		stop("'emis.type' must be specified, must be one of 'norm', 'mvnorm', 'pois', 'nbinom', 'mvt', 't'!")
 
 	## some checking on xpos and xrange, xrange exist then xpos drived from xrange,
 	if(!is.null(xRange) && (class(xRange)=='GRanges' || class(xRange)=='IRanges') && !is.null(usePos) && length(xRange)==nr && usePos %in% c('start', 'end', 'mid')){
@@ -62,7 +62,7 @@ biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, useP
 	
 	# check grp setting, cluster if needed, otherwise treat as one group
 	if(!is.null(grp)) grp<-as.character(grp)
-	grp<-preClustGrp(x, grp=grp, clusterm=clusterm)
+	grp<-preClustGrp(x, grp=grp, cluster.m=cluster.m)
 	
 	# initial sojourn setup unifiy parameter input / density input,  using extra distance, non-integer value can give a dtype value
 	if(!is.null(xAnno) && !is.null(soj.type) && soj.type %in% c('gamma', 'pois', 'nbinom') && class(xAnno) %in% c('TranscriptDb', 'GRanges', 'GRangesList')){
@@ -115,7 +115,7 @@ biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, useP
 
 
 	# check mv vs iterative
-	 if (emis.type=='mvnorm' ){
+	 if (emis.type=='mvnorm' || emis.type=='mvt' ){
 		iterative<-FALSE
 	} else {
 		iterative<-TRUE
@@ -162,12 +162,12 @@ biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, useP
 			if(iterative){
 				for(c in which(gi)){
 					cat(sprintf("step 1 building HSMM for seq %s in column %s.\n", seqs[s], c))
-					runout<-hsmmRun(x[r,c], xid[c], xRange[r], ssoj, emis.type, q.alpha, r.var, cMethod, maxit, maxgap,  tol, na.rm=na.rm) 	
+					runout<-hsmmRun(x[r,c], xid[c], xRange[r], ssoj, emis.type, q.alpha, r.var, cMethod, maxit, maxgap,  tol, avg.m=avg.m, trim=trim, na.rm=na.rm) 	
 					res<-c(res, runout$res)
 					state[r, c]<-runout$yhat
 				}
 			} else {
-				runout<-hsmmRun(x[r,gi], xid[gi], xRange[r], ssoj, emis.type, q.alpha, r.var, cMethod, maxit, maxgap, tol, na.rm=na.rm)	
+				runout<-hsmmRun(x[r,gi], xid[gi], xRange[r], ssoj, emis.type, q.alpha, r.var, cMethod, maxit, maxgap, tol, avg.m=avg.m, trim=trim, na.rm=na.rm)	
 				res<-c(res, runout$res)
 				state[r, gi]<-runout$yhat
 			}
@@ -179,7 +179,7 @@ biomvRhsmm<-function(x, maxk=NULL, maxbp=NULL, J=3, xPos=NULL, xRange=NULL, useP
 	values(xRange)<-DataFrame(x, state, row.names = NULL)
 	new("biomvRCNS",  
 		x = xRange, res = res,
-		param=list(J=J, maxk=maxk, maxbp=maxbp, maxgap=maxgap, soj.type=soj.type, emis.type=emis.type, q.alpha=q.alpha, r.var=r.var, iterative=iterative, cMethod=cMethod, maxit=maxit, tol=tol, group=grp, clusterm=clusterm, na.rm=na.rm)
+		param=list(J=J, maxk=maxk, maxbp=maxbp, maxgap=maxgap, soj.type=soj.type, emis.type=emis.type, q.alpha=q.alpha, r.var=r.var, iterative=iterative, cMethod=cMethod, maxit=maxit, tol=tol, group=grp, cluster.m=cluster.m, avg.m=avg.m, trim=trim, na.rm=na.rm)
 	)
 }
 
@@ -201,8 +201,8 @@ hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05
 	
 	# initialize emission parameters, either from user input or raw data
 	emis<-list(type=emis.type)
-	if(emis$type == 'norm' || emis$type== 'mvnorm') {
-		emis$mu <- estEmisMu(x, J, q.alpha=q.alpha)
+	emis$mu <- estEmisMu(x, J, q.alpha=q.alpha)
+	if(emis$type == 'norm' || emis$type== 'mvnorm' || emis$type == 'mvt') {
 		emis$var <- estEmisVar(x, J, r.var=r.var)
 	} else if (emis$type == 'pois'){
 		emis$lambda  <- estEmisMu(x, J, q.alpha=q.alpha)
@@ -284,13 +284,12 @@ hsmmRun<-function(x, xid='sampleid', xRange, soj, emis.type='norm', q.alpha=0.05
 							strand=rep(strand(xRange)[Ilist[[j]][,'IS']], length(xid)), 
 							SAMPLE=rep(xid, each=nrow(Ilist[[j]])), 
 							STATE=rep(as.character(j), nrow(Ilist[[j]])*length(xid)), 
-							MEAN=as.numeric(sapply(xid, function(s) apply(Ilist[[j]], 1, function(r) apply(as.matrix(x[r[1]:r[2],s]), 2, mean, na.rm=na.rm))))
+							AVG=as.numeric(sapply(xid, function(s) apply(Ilist[[j]], 1, function(r) apply(as.matrix(x[r[1]:r[2],s]), 2, avgFunc, avg.m=avg.m, trim=trim, na.rm=na.rm))))
 						)
 					)
 			)
 	return(list(yhat=yhat, res=res))
 }
-
 
 
 
@@ -367,7 +366,7 @@ sojournAnno<-function(xAnno, soj.type= 'gamma', pbdist=NULL){
 			param<-gammaFit(ftdist[[j]])
 			if(! is.null(pbdist)){
 				# if distance between points are even
-				param['scale'] <- pbdist / param['scale']
+				param['scale'] <- param['scale'] / pbdist 
 			}
 			shape<-c(shape, param['shape'])
 			scale<-c(scale, param['scale'])
@@ -381,7 +380,7 @@ sojournAnno<-function(xAnno, soj.type= 'gamma', pbdist=NULL){
 			param<-nbinomFit(ftdist[[j]])
 			if(! is.null(pbdist)){
 				# if distance between points are even
-				param['mu'] <- pbdist / param['mu']
+				param['mu'] <-  param['mu'] / pbdist
 			}
 			size<-c(size, param['size'])
 			mu<-c(mu, param['mu'])
@@ -395,7 +394,7 @@ sojournAnno<-function(xAnno, soj.type= 'gamma', pbdist=NULL){
 			param<-poisFit(ftdist[[j]])
 			if(! is.null(pbdist)){
 				# if distance between points are even
-				param['lambda'] <- pbdist / param['lambda']
+				param['lambda'] <- param['lambda'] / pbdist 
 			}
 			lambda<-c(lambda, param['lambda'])
 			shift<-c(shift, param['shift'])
@@ -467,8 +466,7 @@ initSojDd <- function(soj, B=NULL) {
 #			cat(maxshift, '\n')
 			for(j in 1:J) { 
 				param <- poisFit(dposV[ftidx[,j]], wt=soj$d[ftidx[,j],j], maxshift=maxshift[j])
-				soj$size[j] <- param['size']
-				soj$mu[j] <- param['mu']
+				soj$lambda[j] <- param['lambda']
 				soj$shift[j] <- param['shift']
 			}
 		}
@@ -501,7 +499,7 @@ initSojDd <- function(soj, B=NULL) {
 		} # else assume soj$d exist.
 	} else if (soj$type == "nparam") {
 		if(!is.null(B)){
-			 soj$d <- apply(matrix(B$eta+.Machine$double.eps, ncol=J), 2, function(x) x/sum(x))
+			 soj$d <- matrix(B$eta+.Machine$double.eps, ncol=J)
 		} # else assume soj$d exist.
 	}
 	soj$d<-sapply(1:J, function(j) sapply(1:nb, function(t) soj$d[((t-1)*maxk+1):(t*maxk),j]/sum(soj$d[((t-1)*maxk+1):(t*maxk),j], na.rm=T)))
@@ -566,18 +564,19 @@ estEmisVar<-function(x, J=3, na.rm=TRUE, r.var=0.75){
 initEmis<-function(emis, x, B=NULL){
 	if(is.null(B)){
 		# then this is for p initialization
+		J<-length(emis$mu)
 		if(emis$type == 'mvnorm') {
-			J<-length(emis$mu)
-			emis$p <- sapply(1:J, function(j) dmvnorm(x, mean = emis$mu[[j]],  sigma = emis$var[[j]])) # here sigma requires covariance mat
+			emis$p <- sapply(1:J, function(j) dmvnorm(x, mean = emis$mu[[j]],  sigma = emis$var[[j]])) # here sigma requires cov mat
 		} else if (emis$type == 'pois'){
-			J<-length(emis$lambda)
-			emis$p <-sapply(1:J, function(j) dpois(x, lambda=emis$lambda[j]))
+			emis$p <-sapply(1:J, function(j) dpois(x, lambda=emis$mu[j]))
 		} else if (emis$type == 'norm'){
-			J<-length(emis$mu)
 			emis$p <- sapply(1:J, function(j) dnorm(x,mean=emis$mu[j], sd=sqrt(emis$var[j]))) # here is sd
 		} else if(emis$type == 'nbinom'){
-			J<-length(emis$mu)
 			emis$p <- sapply(1:J, function(j) dnbinom(x,size=emis$size[j], mu=emis$mu[j]))
+		} else if(emis$type == 'mvt') {
+			emis$p <- sapply(1:J, function(j) dmvt(x, df=emis$df[[j]], delta = emis$mu[[j]],  sigma = cov2cor(emis$var[[j]]), log=FALSE)) # here sigma requires cor mat
+		} else if(emis$type == 't') {
+			emis$p <- sapply(1:J, function(j) dt(x, df=emis$df[j], ncp = emis$mu[j])) 
 		}
 		emis$p<-emis$p/rowSums(emis$p) # normalized
 	} else {
@@ -603,7 +602,18 @@ initEmis<-function(emis, x, B=NULL){
 			tmp <- apply(BL, 2, function(cv) nbinomFit((x[isa]), cv[isa]))
    			emis$mu <- tmp['mu',]
 			emis$size <- tmp['size', ]
-		}
+		} else 	if(emis$type == 'mvt') {
+			isa <-  !apply(is.na(x),1,any) 
+			tmp <- apply(BL, 2, function(cv) tmvtfFit((x[isa, ]), cv[isa]))
+			emis$mu <- lapply(tmp, function(l) l[['mu']])
+			emis$df <- lapply(tmp, function(l) l[['df']])
+			emis$var <- lapply(tmp, function(l) l[['var']])
+		} else if(emis$type == 't') {
+			isa <- !is.na(x)
+			tmp <- apply(BL, 2, function(cv) tmvtfFit((x[isa]), cv[isa]))
+			emis$mu <- sapply(tmp, function(l) l[['mu']])
+			emis$df <- sapply(tmp, function(l) l[['df']])
+		} 
 	}
 	return(emis)
 }	
