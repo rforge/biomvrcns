@@ -1,4 +1,4 @@
 biomvRCNS
 =========
 
-Copy Number analysis and Segmentaion models for multivariate Bio data
+Copy Number study and Segmentation for multivariate biological data
